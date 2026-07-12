@@ -2249,6 +2249,8 @@ int main(int argc, char **argv)
     nonl();
     keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
+    mousemask(BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED, NULL);
+    mouseinterval(0);
     // A lone Esc is also the first byte of every arrow/function-key
     // escape sequence, so ncurses waits ESCDELAY (default 1000 ms) for a
     // continuation before reporting a bare Esc. That made Esc-to-back /
@@ -2535,6 +2537,31 @@ int main(int argc, char **argv)
                 // ncurses already updated LINES/COLS; the next loop
                 // iteration redraws.
                 break;
+            case KEY_MOUSE: {
+                MEVENT mevent;
+                if (getmouse(&mevent) == OK) {
+                    int data_top = header_h + 1;
+                    int data_h   = list_h - 1;
+                    if (mevent.y >= data_top && mevent.y < data_top + data_h) {
+                        int ridx = top + (mevent.y - data_top);
+                        if (ridx >= 0 && ridx < n_rows) {
+                            sel = ridx;
+                            // A double-click also opens the row, mirroring
+                            // Enter, so a bulk_file/tcmd_response can be
+                            // drilled into without touching the keyboard.
+                            if (mevent.bstate & BUTTON1_DOUBLE_CLICKED) {
+                                if (rows[sel].packet_type == BULK_FILE_PACKET_TYPE)
+                                    enter_recon(db);
+                                else if (rows[sel].packet_type == TCMD_RESP_PACKET_TYPE) {
+                                    if (in_group) enter_recon(db);
+                                    else          enter_group(db);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
             }
         }
 
